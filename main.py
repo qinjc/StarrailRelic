@@ -120,6 +120,10 @@ class Relic:
             return False
         if self.level != other.level:
             return False
+        if self.main_entry != other.main_entry:
+            return False
+        if self.sub_entry != other.sub_entry:
+            return False
         return True
     #
     # def __add__(self, other):
@@ -221,7 +225,7 @@ def scan_relics():
         if page_end:
             offset_y_cnt += 1
         for col in range(9):
-            pyautogui.click(249 + col * 167, 358 + offset_y * offset_y_cnt, duration=0.1)
+            pyautogui.click(249 + col * 167, 358 + offset_y * offset_y_cnt, duration=0)
             print('row:{}, col:{}'.format(row, col))
             feature_color = tuple(np.array(ImageGrab.grab(NAVIGATION['color']))[0][0])
 
@@ -777,6 +781,6 @@ def statistic():
 
 
 if __name__ == '__main__':
-    test()
-    # main('黄泉')
+    # test()
+    main('黄泉')
     # statistic()
