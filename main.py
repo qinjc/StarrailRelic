@@ -1,391 +1,12 @@
 import importlib
-import logging
-import os
-import time
 from copy import deepcopy
-import pickle
 from functools import reduce
 from itertools import chain
-from threading import Thread
 
-from PIL import ImageGrab, ImageChops
-import keyboard
-import numpy as np
-
-# while True:
-#     x, y = pyautogui.position()
-#     print(x, y)
-#     time = __import__('time')
-#     time.sleep(0.1)
-
-NAVIGATION = {
-    'color': (1871, 221, 1872, 222),
-
-    'position': (1890, 373, 1983, 408),
-    'level': (1920, 413, 2000, 457),
-    'main_entry_name': (1923, 530, 2220, 575),
-    'main_entry_value': (2326, 530, 2456, 575),
-
-    'sub_entry_data_3': (1923, 593, 2456, 734),
-    'suit_name_3': (1869, 762, 2456, 806),
-    'flag_3': (1869, 812, 1970, 849),
-
-    'sub_entry_data_4': (1923, 593, 2456, 785),
-    'suit_name_4': (1869, 813, 2456, 857),
-    'flag_4': (1869, 866, 1970, 900)
-}
-
-COLOR = {
-    'orange': (183, 141, 97),
-    'purple': (139, 101, 197)
-}
-
-# 主词条
-MAIN_ENTRY = {'攻击力', '攻击力百分比', '防御力百分比', '生命值', '生命值百分比',
-              '暴击率', '暴击伤害', '击破特攻', '效果命中', '能量恢复效率', '治疗量加成', '速度',
-              '火属性伤害提高', '物理属性伤害提高', '雷属性伤害提高', '风属性伤害提高', '冰属性伤害提高', '虚数属性伤害提高', '量子属性伤害提高'}
-# 副词套
-SUB_ENTRY = {'攻击力', '攻击力百分比', '防御力', '防御力百分比', '生命值', '生命值百分比',
-             '暴击率', '暴击伤害', '击破特攻', '效果命中', '效果抵抗', '速度'}
-# 总词条
-ENTRY = MAIN_ENTRY | SUB_ENTRY | {'速度百分比'}
-# 百分数词条
-PER_ENTRY = {'攻击力百分比', '防御力百分比', '生命值百分比', '速度百分比', '暴击率', '暴击伤害', '击破特攻', '效果命中', '效果抵抗'}
-# 数值词条
-NON_PER_ENTRY = ENTRY - PER_ENTRY
-# 面板词条（即舍去xx伤害提高）
-PANEL_ENTRY = {key for key in ENTRY if ('属性伤害提高' not in key)}
-# 乘区词条（爆伤乘区记在面板词条中，因此九大乘区，八个乘区词条）
-MULTIPLIER_ENTRY = {'倍率', '增伤', '虚弱', '防御', '抗性', '易伤', '减伤', '击破状态'}
-
-# 套装
-INNER_SUIT = {'毁烬焚骨的大公', '幽锁深牢的系囚', '宝命长存的莳者', '骇域漫游的信使', '密林卧雪的猎人', '晨昏交界的翔鹰',
-              '流星追迹的怪盗', '街头出身的拳王', '云无留迹的过客', '野穗伴行的快枪手', '戍卫风雪的铁卫', '繁星璀璨的天才',
-              '净庭教宗的圣骑士', '激奏雷电的乐队', '熔岩锻铸的火匠', '盗匪荒漠的废土客', '机心戏梦的钟表匠', '死水深潜的先驱'}
-OUTER_SUIT = {'梦想之地匹诺康尼', '苍穹战线格拉默', '折断的龙骨', '繁星竞技场', '太空封印站', '不老者的仙舟', '生命的翁瓦克',
-              '星体差分机', '盗贼公国塔利亚', '泛银河商业公司', '筑城者的贝洛伯格', '停转的萨尔索图', '无主荒星茨冈尼亚',
-              '出云显世与高天神国'}
-SUIT = INNER_SUIT | OUTER_SUIT
-
-POSITION_INDEX = {'头部': 0, '手部': 1, '躯干': 2, '脚部': 3, '位面球': 4, '连结绳': 5}
-POSITION_LIB = ['头部', '手部', '躯干', '脚部', '位面球', '连结绳']
-
-MULTIPLIER_LIB = ['基础', '暴伤', '增伤', '虚弱', '防御', '抗性', '易伤', '减伤', '击破状态']
+from Constants import *
+from RelicsGetter import get_relics
 
 output_file_name = 'relics.pkl.qjc'
-
-# 等级
-ATTACKER_LEVEL = 80
-ENEMY_LEVEL = 95
-
-
-class Relic:
-    def __init__(self):
-        self.suit = 'Empty'
-        self.position = -1
-        self.level = -1
-        self.main_entry = ['Empty', 0]
-        self.sub_entry = {key: 0 for key in ENTRY}
-
-    @classmethod
-    def from_data(cls, suit: str, position: int, level: int, main_entry: list, sub_entry: dict):
-        new_relic = Relic()
-        new_relic.suit = suit
-        new_relic.position = position
-        new_relic.level = level
-        new_relic.main_entry = deepcopy(main_entry)
-        new_relic.sub_entry = deepcopy(sub_entry)
-
-        return new_relic
-
-    def __str__(self):
-        s = ''
-        s += '套装: ' + self.suit + ', '
-        s += '部位: ' + POSITION_LIB[self.position] + ', '
-        s += '等级: ' + str(self.level) + ', '
-        s += '主词条: {}'.format('{}+{:.3f}'.format(*self.main_entry)
-                              if self.main_entry[0] in NON_PER_ENTRY else
-                              '{}+{:.1f}%'.format(self.main_entry[0], self.main_entry[1] * 100)) + ', '
-        s += '副词条: {}'.format('、'.join(
-            ['{}+{:.3f}'.format(key, value) if key in NON_PER_ENTRY else '{}+{:.1f}%'.format(key, value * 100)
-             for key, value in self.sub_entry.items() if value]
-        ))
-        return s
-        pass
-
-    def __eq__(self, other):
-        if self.position != other.position:
-            return False
-        if self.suit != other.suit:
-            return False
-        if self.level != other.level:
-            return False
-        if self.main_entry != other.main_entry:
-            return False
-        if self.sub_entry != other.sub_entry:
-            return False
-        return True
-    #
-    # def __add__(self, other):
-    #     rst = Relic()
-    #     for value in rst.entry:
-    #         rst.entry[value] = self.entry[value] + other.entry[value]
-    #     return rst
-    #
-    # @classmethod
-    # def sum(cls, arrange):
-    #     rst = Relic()
-    #     for entry_name in rst.entry.keys():
-    #         rst.entry[entry_name] = sum(map(lambda relic: relic.entry[entry_name], arrange))
-    #     return rst
-
-
-# 提供位置返回识别结果
-# invert为是否将图片反色
-def m_ocr(ocr, bbox_key, invert, det=True):
-    img = ImageGrab.grab(NAVIGATION[bbox_key])
-    if invert:
-        img = ImageChops.invert(img)
-    # if bbox_key == 'level':
-    #     img.show()
-    img_arr = np.array(img)
-    rst = ocr.ocr(img_arr, cls=False, bin=True, det=det)
-    return rst
-
-
-class ocr_thread(Thread):
-    # def __init__(self, ocr, bbox_key, invert, det=True):
-    #     super().__init__()
-    #     self.result = None
-    #     self.ocr = ocr
-    #     self.bbox_key = bbox_key
-    #     self.invert = invert
-    #     self.det = det
-
-    def __init__(self, func, *args, **kwargs):
-        Thread.__init__(self)
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-        self.result = None
-
-    def run(self):
-        self.result = self.func(*self.args, **self.kwargs)
-
-    def get_result(self):
-        return self.result
-
-
-# 纠正套装名字
-def correct_suit_name(relic):
-    max_score = 0
-    s1 = set(relic.suit)
-    for suit_name in SUIT:
-        s2 = set(suit_name)
-        intersection = s1 & s2
-        union = s1 | s2
-        score = len(intersection) / len(union)
-        if score > max_score:
-            relic.suit = suit_name
-            max_score = score
-
-
-# 通过扫描屏幕获取玩家的库存遗器
-def scan_relics():
-    print('waiting...')
-    # 检测键盘"`"键启动
-    keyboard.wait('`')
-    scroll_control_lib = [5] * 24 + [4]
-    scroll_control_pos = 0
-
-    print('importing OCR...')
-    paddleocr = __import__('paddleocr')
-    print('initial OCR...')
-    # import paddleocr
-    ocr = paddleocr.PaddleOCR(lang="ch", use_gpu=True, show_log=False)
-    print('OCR is ready...')
-
-    pyautogui = __import__('pyautogui')
-
-    relics = [[] for _ in range(len(POSITION_LIB))]
-    col_first_relic = None
-    page_end = False
-    detect_end = False
-    offset_y = 200
-    offset_y_cnt = 0
-    # start_position = (249, 358)
-
-    start_time = time.time()
-    print('detection start')
-    # 查询10行
-    # for row in range(119):
-    row = 0
-    while not detect_end:
-        # 每行9个
-        if page_end:
-            offset_y_cnt += 1
-        for col in range(9):
-            pyautogui.click(249 + col * 167, 358 + offset_y * offset_y_cnt, duration=0)
-            print('row:{}, col:{}'.format(row, col))
-            feature_color = tuple(np.array(ImageGrab.grab(NAVIGATION['color']))[0][0])
-
-            if feature_color == COLOR['purple']:
-                detect_end = True
-                break
-            elif feature_color != COLOR['orange']:
-                raise ValueError('color: {} not found!'.format(feature_color))
-
-            # 三词条时“二件套”的位置
-            rst_3_ocr_instance = ocr_thread(m_ocr, ocr, 'flag_3', invert=True)
-            rst_3_ocr_instance.start()
-            rst_3_ocr_instance.join()
-            rst_3_ocr_result = rst_3_ocr_instance.get_result()
-            try:
-                rst_3 = rst_3_ocr_result[0][0][1][0]
-                rst_3_bool = (rst_3 == '二件套')
-            except TypeError:
-                rst_3 = None
-                rst_3_bool = False
-
-            # 四词条时“二件套”的位置
-            rst_4_ocr_instance = ocr_thread(m_ocr, ocr, 'flag_4', invert=True)
-            rst_4_ocr_instance.start()
-            rst_4_ocr_instance.join()
-            rst_4_ocr_result = rst_4_ocr_instance.get_result()
-            try:
-                rst_4 = rst_4_ocr_result[0][0][1][0]
-                rst_4_bool = (rst_4 == '二件套')
-            except TypeError:
-                rst_4 = None
-                rst_4_bool = False
-
-            entry_num = 3 if rst_3_bool else 4
-
-            # 词条检测异常，并不是恰好其中一个检测到了“二件套”
-            if rst_3_bool ^ rst_4_bool == 0:
-                raise Exception('entry number detects wrongly! Detected {} and {} respectively.'.format(
-                    rst_3, rst_4
-                ))
-            else:
-                # ocr 遗器位置
-                position_ocr_instance = ocr_thread(m_ocr, ocr, 'position', invert=False, det=False)
-                position_ocr_instance.start()
-                position_ocr_instance.join()
-                position_ocr_result = position_ocr_instance.get_result()
-                position = POSITION_INDEX[position_ocr_result[0][0][0]]
-
-                # ocr 遗器等级
-                level_ocr_instance = ocr_thread(m_ocr, ocr, 'level', invert=True, det=False)
-                level_ocr_instance.start()
-                level_ocr_instance.join()
-                level_ocr_result = level_ocr_instance.get_result()
-                level = int(level_ocr_result[0][0][0])
-
-                # ocr 遗器主词条属性
-                main_entry_name_ocr_instance = ocr_thread(m_ocr, ocr, 'main_entry_name', invert=False, det=False)
-                main_entry_name_ocr_instance.start()
-                main_entry_name_ocr_instance.join()
-                main_entry_name_ocr_result = main_entry_name_ocr_instance.get_result()
-                main_entry_name = main_entry_name_ocr_result[0][0][0]
-
-                # ocr 遗器主词条数值
-                main_entry_value_ocr_instance = ocr_thread(m_ocr, ocr, 'main_entry_value', invert=False)
-                main_entry_value_ocr_instance.start()
-                main_entry_value_ocr_instance.join()
-                main_entry_value_ocr_result = main_entry_value_ocr_instance.get_result()
-                main_entry_value = main_entry_value_ocr_result[0][0][1][0]
-
-                # ocr 遗器副词条
-                sub_entry_ocr_instance = ocr_thread(m_ocr, ocr, 'sub_entry_data_{}'.format(entry_num), invert=True)
-                sub_entry_ocr_instance.start()
-                sub_entry_ocr_instance.join()
-                sub_entry_ocr_result = sub_entry_ocr_instance.get_result()
-                sub_entry_data = list(map(lambda x: x[1][0], sub_entry_ocr_result[0]))
-
-                # ocr 遗器套装名
-                suit_name_ocr_instance = ocr_thread(
-                    m_ocr, ocr, 'suit_name_{}'.format(entry_num), invert=True, det=False)
-                suit_name_ocr_instance.start()
-                suit_name_ocr_instance.join()
-                suit_name_ocr_result = suit_name_ocr_instance.get_result()
-                suit_name = suit_name_ocr_result[0][0][0]
-                # print(sub_entry_data)
-
-            # 处理百分数
-            # 主词条
-            if main_entry_value[-1] == '%':
-                if main_entry_name in {'生命值', '攻击力', '防御力'}:
-                    main_entry_name += '百分比'
-                main_entry_value = eval(main_entry_value[:-1]) / 100
-            else:
-                main_entry_value = eval(main_entry_value)
-            if main_entry_name not in MAIN_ENTRY:
-                raise ValueError('main entry "{}" not found!'.format(main_entry_name))
-            main_entry = [main_entry_name, main_entry_value]
-
-            # 副词条
-            sub_entry = dict()
-            for num in range(entry_num):
-                entry_name, entry_value = sub_entry_data[2 * num:2 * num + 2]
-                if entry_value[-1] == '%':
-                    if entry_name in {'生命值', '攻击力', '防御力'}:
-                        entry_name += '百分比'
-                    entry_value = eval(entry_value[:-1]) / 100
-                else:
-                    entry_value = eval(entry_value)
-                if entry_name not in SUB_ENTRY:
-                    raise ValueError('sub entry "{}" not found!'.format(entry_name))
-                sub_entry.update({entry_name: entry_value})
-
-            # print(main_entry)
-            # print(sub_entry)
-            # print(position, level, suit_name)
-            relic = Relic.from_data(suit_name, position, level, main_entry, sub_entry)
-            correct_suit_name(relic)
-
-            # 记录列首以判断是否拉到底部
-            if col == 0 and not page_end:
-                if not col_first_relic:
-                    col_first_relic = relic
-                else:
-                    # 此时已经拉到页面底部
-                    if col_first_relic == relic:
-                        page_end = True
-                        break
-                    else:
-                        col_first_relic = relic
-
-            relics[relic.position].append(relic)
-            print(relic)
-
-            # sleep(0.1)
-
-        # 若检测到四星（紫色）遗器，则中止
-        if detect_end:
-            break
-
-        # 若没到页面底部，则通过鼠标滚轮继续下一行
-        if not page_end:
-            for _ in range(scroll_control_lib[scroll_control_pos]):
-                pyautogui.scroll(-1)
-            scroll_control_pos = (scroll_control_pos + 1) % len(scroll_control_lib)
-        row += 1
-
-    end_time = time.time()
-    logging.info('time of detection: {}'.format(end_time - start_time))
-    return relics
-
-
-# 从屏幕或者文件中获取玩家的库存遗器
-def get_relics():
-    if output_file_name in os.listdir():
-        with open(output_file_name, 'rb') as fp:
-            relics = pickle.load(fp)
-    else:
-        relics = scan_relics()
-        with open(output_file_name, 'wb') as fp:
-            pickle.dump(relics, fp)
-    return relics
 
 
 def cal_score(arrange, char_info, buffs):
@@ -522,10 +143,14 @@ def cal_score(arrange, char_info, buffs):
         base_dmg = ability_multiplier * stat + extra_dmg
 
         # 计算各属性
-        attack = char_info['base_data']['攻击力'] * (1 + model_char_properties['攻击力百分比']) + model_char_properties['攻击力']
-        defense = char_info['base_data']['防御力'] * (1 + model_char_properties['防御力百分比']) + model_char_properties['防御力']
-        hp = char_info['base_data']['生命值'] * (1 + model_char_properties['生命值百分比']) + model_char_properties['生命值']
-        speed = char_info['base_data']['速度'] * (1 + model_char_properties['速度百分比']) + model_char_properties['速度']
+        attack = char_info['base_data']['攻击力'] * (1 + model_char_properties['攻击力百分比']) + model_char_properties[
+            '攻击力']
+        defense = char_info['base_data']['防御力'] * (1 + model_char_properties['防御力百分比']) + \
+            model_char_properties['防御力']
+        hp = char_info['base_data']['生命值'] * (1 + model_char_properties['生命值百分比']) + model_char_properties[
+            '生命值']
+        speed = char_info['base_data']['速度'] * (1 + model_char_properties['速度百分比']) + model_char_properties[
+            '速度']
 
         # 给面板添加进最终值
         model_char_panel_properties = {
@@ -741,11 +366,8 @@ def output(max_arrange_dict):
         ))
 
 
-def main(char_name):
+def calc_max_damage(player_relics, char_name):
     print('计算{}：'.format(char_name))
-
-    # 获取玩家库存遗器
-    player_relics = get_relics()
 
     # 获取角色的信息 和 圣遗物方案
     char_file = importlib.import_module('character_info.{}'.format(char_name))
@@ -760,27 +382,69 @@ def main(char_name):
     output(max_arrange_dict)
 
 
-def test():
-    relics = get_relics()
-
-    # Relics = []
-    # for r in relics:
-    #     for i in r:
-    #         print(i)
-    print('\n总计: {}件'.format(sum(map(lambda x: len(x), relics))))
-
-
 def statistic():
-    relics = get_relics()
+    relics = get_relics(output_file_name)
     relics = chain.from_iterable(relics)
-    relics = sorted(relics, key=lambda x: x.sub_entry.get('暴击率', 0) * 2 + x.sub_entry.get('暴击伤害', 0), reverse=True)
+    relics = sorted(relics, key=lambda x: x.get_crit_score(), reverse=True)
     for relic in relics:
         score = (relic.sub_entry.get('暴击率', 0) * 2 + relic.sub_entry.get('暴击伤害', 0)) * 100
         print('{:.1f}'.format(score), end='\t')
         print(relic)
 
 
-if __name__ == '__main__':
-    # test()
-    main('黄泉')
+def strengthen_relics():
+    relics = get_relics(output_file_name)
+    relics = chain.from_iterable(relics)
+
+    # 有强化价值的套装
+    relic_suit_filter = ['毁烬焚骨的大公', '幽锁深牢的系囚', '密林卧雪的猎人', '街头出身的拳王',
+                         '野穗伴行的快枪手', '繁星璀璨的天才', '激奏雷电的乐队', '熔岩锻铸的火匠',
+                         '盗匪荒漠的废土客', '机心戏梦的钟表匠',
+
+                         '苍穹战线格拉默', '繁星竞技场', '太空封印站', '泛银河商业公司',
+                         '停转的萨尔索图', '无主荒星茨冈尼亚', '出云显世与高天神国']
+
+    # 有强化价值的主词条（对应六个部位）
+    # base_entry = {'攻击力百分比', '防御力百分比', '生命值百分比'}
+    base_entry = {'攻击力百分比'}
+    relic_main_entry_filter = [
+        {'生命值'},
+        {'攻击力'},
+        {'暴击率', '暴击伤害'},
+        base_entry,
+        {'火属性伤害提高', '物理属性伤害提高', '雷属性伤害提高', '风属性伤害提高', '冰属性伤害提高',
+         '虚数属性伤害提高', '量子属性伤害提高'} | base_entry,
+        {'击破特攻', '能量恢复效率'} | base_entry,
+    ]
+
+    # 过滤值得强化的套装和主词条
+    def relic_filter_func(t_relic):
+        if t_relic.level == 15:
+            return False
+        if t_relic.suit not in relic_suit_filter:
+            return False
+        if t_relic.main_entry[0] not in relic_main_entry_filter[t_relic.position]:
+            return False
+        return True
+
+    relics = filter(relic_filter_func, relics)
+    import heapq
+    relics = list(relics)
+    heapq.heapify(relics)
+    relics_sorted = heapq.nsmallest(len(relics), relics)
+
+    for relic in relics_sorted:
+        print('期望双爆分: {:.2f}'.format(relic.get_crit_score_expectation()))
+        print('当前双爆分: {:.2f}'.format(relic.get_crit_score()))
+        print(relic.format_str())
+
+
+def main():
+    # relics = get_relics()
+    # calc_max_damage(relics, '黄泉')
     # statistic()
+    strengthen_relics()
+
+
+if __name__ == '__main__':
+    main()

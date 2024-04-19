@@ -67,15 +67,21 @@ def main():
             sleep(50)
 
 
+import sys
+import RelicInspect
+from RelicsGetter import get_relics
+from PyQt5.QtWidgets import QApplication, QMainWindow
+
+
 def test():
-    def func1(*args, **kwargs):
-        print(args)
-        print(kwargs)
-
-    def func2(*args, **kwargs):
-        func1(*args, **kwargs)
-
-    func2(aaa=111)
+    raw_data = [[1, 2, 3], [4, 5, 6]]
+    sample_data = list(chain.from_iterable(raw_data))
+    sample_data = []
+    for i in range(len(raw_data)):
+        sample_data += raw_data[i]
+    sample_data[1] = 999
+    print(sample_data)
+    print(raw_data)
 
 
 if __name__ == '__main__':
