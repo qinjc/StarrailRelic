@@ -120,6 +120,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_reset.clicked.connect(on_pushButton_reset)
         self.pushButton_modify.clicked.connect(on_pushButton_modify)
 
+        # TODO: 表格列排序（包括双爆分和期望双爆分）
+        # self.tableView.sortByColumn()
+
     def _setup_data(self):
         output_file_name = 'relics.pkl.qjc'
         sample_data = get_relics(output_file_name)
