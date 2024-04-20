@@ -10,8 +10,14 @@
     <height>600</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>遗器小助手@qinjc</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QTableView" name="tableView">
@@ -51,11 +57,11 @@
      <bool>true</bool>
     </property>
    </widget>
-   <widget class="QRadioButton" name="radioButton">
+   <widget class="QCheckBox" name="checkBox_ignore_full_level">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>530</y>
+      <x>130</x>
+      <y>520</y>
       <width>141</width>
       <height>31</height>
      </rect>
@@ -469,7 +475,7 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>18</pointsize>
+       <pointsize>16</pointsize>
       </font>
      </property>
      <property name="text">
@@ -487,7 +493,7 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>18</pointsize>
+       <pointsize>16</pointsize>
       </font>
      </property>
      <property name="text">
@@ -563,6 +569,24 @@
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_filter">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>522</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>筛选</string>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">

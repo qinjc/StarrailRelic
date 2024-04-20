@@ -440,10 +440,10 @@ def strengthen_relics():
 
 
 def main():
-    # relics = get_relics()
-    # calc_max_damage(relics, '黄泉')
+    relics = get_relics(output_file_name)
+    calc_max_damage(relics, '黄泉')
     # statistic()
-    strengthen_relics()
+    # strengthen_relics()
 
 
 if __name__ == '__main__':

@@ -3,29 +3,48 @@ from copy import deepcopy
 from itertools import chain
 
 from Relic import Relic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QMessageBox, QDialog
-from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QCheckBox
+from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal
 
 from RelicsGetter import get_relics
 from Constants import *
 
 from RelicInspect import Ui_MainWindow  # 导入转换后的ui模块
-from RelicModifyConfirmDialog import Ui_Dialog
+from RelicModifyConfirmDialog import RelicModifyConfirmDialog
+from RelicFilterDialog import RelicFilterDialog
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setupUi(self)  # 使用Ui_MainWindow中的setupUi方法来设置界面
-        self.setup()
+        self.setFixedSize(1600, 600)
+        self._setup_variable()
+        self._setup_widget()
 
-    def setup(self):
-        def relic_filter_func(t_relic):
-            if self.radioButton.isChecked() and t_relic.level == 15:
+    def _setup_variable(self):
+        self.ignore_full_level = False
+        self.selected_suit = SUIT
+        self.selected_position = set(POSITION_LIB)
+        self.selected_main_entry = MAIN_ENTRY
+        self.selected_sub_entry = SUB_ENTRY
+
+    def _setup_widget(self):
+        def relic_filter_func(t_relic: Relic):
+            if self.ignore_full_level and t_relic.level == 15:
+                return False
+            if t_relic.suit not in self.selected_suit:
+                return False
+            if t_relic.position not in self.selected_position:
+                return False
+            if t_relic.main_entry[0] not in self.selected_main_entry:
+                return False
+            if not (t_relic.sub_entry.keys() | self.selected_sub_entry):
                 return False
             return True
 
-        def flush_model_data():
+        def on_click_ignore_button():
+            self.ignore_full_level = self.checkBox_ignore_full_level.isChecked()
             self.model.update_data(relic_filter_func)
 
         def display_selected(current: QModelIndex):
@@ -51,26 +70,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.lineEdit_sub_entry_names[3].setFrame(False)
 
         def on_pushButton_modify():
-            dialog_ui = Ui_Dialog()
-            dialog = QDialog(self)
-            dialog_ui.setupUi(dialog)
-            dialog.setWindowTitle('是否确定修改？')
+            dialog = RelicModifyConfirmDialog()
 
             # 找到圣遗物原属性并显示
             current: QModelIndex = self.tableView.currentIndex()
             current_row = current.row()
             old_relic: Relic = self.model.data_view[current_row]
 
-            lineEdit_sub_entry_names_old = [dialog_ui.__getattribute__('lineEdit_sub_entry_{}_name_old'.format(i))
+            lineEdit_sub_entry_names_old = [dialog.__getattribute__('lineEdit_sub_entry_{}_name_old'.format(i))
                                             for i in range(1, 5)]
-            lineEdit_sub_entry_values_old = [dialog_ui.__getattribute__('lineEdit_sub_entry_{}_value_old'.format(i))
+            lineEdit_sub_entry_values_old = [dialog.__getattribute__('lineEdit_sub_entry_{}_value_old'.format(i))
                                              for i in range(1, 5)]
 
-            dialog_ui.lineEdit_suit.setText(old_relic.suit)
-            dialog_ui.lineEdit_position.setText(POSITION_LIB[old_relic.position])
-            dialog_ui.lineEdit_level_old.setText(str(old_relic.level))
-            dialog_ui.lineEdit_main_entry_name_old.setText(old_relic.main_entry[0])
-            dialog_ui.lineEdit_main_entry_value_old.setText('{:.3f}'.format(old_relic.main_entry[1]))
+            dialog.lineEdit_suit.setText(old_relic.suit)
+            dialog.lineEdit_position.setText(POSITION_LIB[old_relic.position])
+            dialog.lineEdit_level_old.setText(str(old_relic.level))
+            dialog.lineEdit_main_entry_name_old.setText(old_relic.main_entry[0])
+            dialog.lineEdit_main_entry_value_old.setText('{:.3f}'.format(old_relic.main_entry[1]))
 
             names_old = sorted(old_relic.sub_entry.keys())
             for i in range(len(old_relic.sub_entry)):
@@ -78,14 +94,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 lineEdit_sub_entry_values_old[i].setText('{:.3f}'.format(old_relic.sub_entry[names_old[i]]))
 
             # 显示新属性
-            lineEdit_sub_entry_names_new = [dialog_ui.__getattribute__('lineEdit_sub_entry_{}_name_new'.format(i))
+            lineEdit_sub_entry_names_new = [dialog.__getattribute__('lineEdit_sub_entry_{}_name_new'.format(i))
                                             for i in range(1, 5)]
-            lineEdit_sub_entry_values_new = [dialog_ui.__getattribute__('lineEdit_sub_entry_{}_value_new'.format(i))
+            lineEdit_sub_entry_values_new = [dialog.__getattribute__('lineEdit_sub_entry_{}_value_new'.format(i))
                                              for i in range(1, 5)]
 
-            dialog_ui.lineEdit_level_new.setText(str(self.spinBox_level.value()))
-            dialog_ui.lineEdit_main_entry_name_new.setText(self.lineEdit_main_entry_name.text())
-            dialog_ui.lineEdit_main_entry_value_new.setText(self.lineEdit_main_entry_value.text())
+            dialog.lineEdit_level_new.setText(str(self.spinBox_level.value()))
+            dialog.lineEdit_main_entry_name_new.setText(self.lineEdit_main_entry_name.text())
+            dialog.lineEdit_main_entry_value_new.setText(self.lineEdit_main_entry_value.text())
 
             for i in range(4):
                 lineEdit_sub_entry_names_new[i].setText(self.lineEdit_sub_entry_names[i].text())
@@ -95,14 +111,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # 获取圣遗物新属性
                 new_relic = deepcopy(old_relic)
                 # 获取新等级
-                new_relic.level = int(dialog_ui.lineEdit_level_new.text())
+                new_relic.level = int(dialog.lineEdit_level_new.text())
                 # 获取新主词条
                 new_relic.main_entry[1] = float(self.lineEdit_main_entry_value.text())
                 # 获取新副词条
                 for i in range(4):
                     if lineEdit_sub_entry_names_new[i].text() and lineEdit_sub_entry_values_new[i].text():
                         if lineEdit_sub_entry_names_new[i].text() in SUB_ENTRY:
-                            new_relic.sub_entry[lineEdit_sub_entry_names_new[i].text()]\
+                            new_relic.sub_entry[lineEdit_sub_entry_names_new[i].text()] \
                                 = float(lineEdit_sub_entry_values_new[i].text())
                 # 更新
                 self.model.update_relic(old_relic, new_relic)
@@ -112,16 +128,98 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             current: QModelIndex = self.tableView.currentIndex()
             display_selected(current)
 
-        self.radioButton.toggled.connect(flush_model_data)
+        def sort_table_by_column(col):
+            if col not in {3, 4}:
+                return
+            if col == 3:
+                self.model.sort_data_view(key=lambda x: x.get_crit_score())
+            elif col == 4:
+                self.model.sort_data_view(key=lambda x: x.get_crit_score_expectation())
+
+        def on_pushButton_filter():
+            def on_clicked_select_suit(t_dialog: RelicFilterDialog, select_all: bool = True):
+                for t_check_box_name in t_dialog.suit_checked_set:
+                    t_dialog.__getattribute__(t_check_box_name).setChecked(select_all)
+
+            def on_clicked_select_position(t_dialog: RelicFilterDialog, select_all: bool = True):
+                for t_check_box_name in t_dialog.position_checked_set:
+                    t_dialog.__getattribute__(t_check_box_name).setChecked(select_all)
+
+            def on_clicked_select_main_entry(t_dialog: RelicFilterDialog, select_all: bool = True):
+                for t_check_box_name in t_dialog.main_entry_checked_set:
+                    t_dialog.__getattribute__(t_check_box_name).setChecked(select_all)
+
+            def on_clicked_select_sub_entry(t_dialog: RelicFilterDialog, select_all: bool = True):
+                for t_check_box_name in t_dialog.sub_entry_checked_set:
+                    t_dialog.__getattribute__(t_check_box_name).setChecked(select_all)
+
+            dialog = self.filter_dialog
+            # 套装筛选
+            dialog.pushButton_suit_select_all.clicked.connect(lambda: on_clicked_select_suit(dialog, True))
+            dialog.pushButton_suit_select_none.clicked.connect(lambda: on_clicked_select_suit(dialog, False))
+            # 位置筛选
+            dialog.pushButton_position_select_all.clicked.connect(lambda: on_clicked_select_position(dialog, True))
+            dialog.pushButton_position_select_none.clicked.connect(lambda: on_clicked_select_position(dialog, False))
+            # 主词条筛选
+            dialog.pushButton_main_entry_select_all.clicked.connect(lambda:
+                                                                    on_clicked_select_main_entry(dialog, True))
+            dialog.pushButton_main_entry_select_none.clicked.connect(lambda:
+                                                                     on_clicked_select_main_entry(dialog, False))
+            # 副词条筛选
+            dialog.pushButton_sub_entry_select_all.clicked.connect(lambda: on_clicked_select_sub_entry(dialog, True))
+            dialog.pushButton_sub_entry_select_none.clicked.connect(lambda: on_clicked_select_sub_entry(dialog, False))
+
+            if dialog.exec_():
+                # 获取套装的选中状态
+                for check_box_name in dialog.suit_checked_set:
+                    check_box: QCheckBox = dialog.__getattribute__(check_box_name)
+                    suit_name = check_box.text()
+                    if check_box.isChecked():
+                        self.selected_suit.add(suit_name)
+                    else:
+                        self.selected_suit.discard(suit_name)
+
+                # 获取位置的选中状态
+                for check_box_name in dialog.position_checked_set:
+                    check_box: QCheckBox = dialog.__getattribute__(check_box_name)
+                    position: int = POSITION_INDEX[check_box.text()]
+                    if check_box.isChecked():
+                        self.selected_position.add(position)
+                    else:
+                        self.selected_position.discard(position)
+
+                # 获取主词条选中状态
+                for check_box_name in dialog.main_entry_checked_set:
+                    check_box: QCheckBox = dialog.__getattribute__(check_box_name)
+                    main_entry_name = check_box.text()
+                    if check_box.isChecked():
+                        self.selected_main_entry.add(main_entry_name)
+                    else:
+                        self.selected_main_entry.discard(main_entry_name)
+
+                # 获取副词条选中状态
+                for check_box_name in dialog.sub_entry_checked_set:
+                    check_box: QCheckBox = dialog.__getattribute__(check_box_name)
+                    sub_entry_name = check_box.text()
+                    if check_box.isChecked():
+                        self.selected_sub_entry.add(sub_entry_name)
+                    else:
+                        self.selected_sub_entry.discard(sub_entry_name)
+
+                self.model.update_data(relic_filter_func)
+
+        self.checkBox_ignore_full_level.toggled.connect(on_click_ignore_button)
         self._setup_data()
         self._setup_col_span()
         selection_model = self.tableView.selectionModel()
         selection_model.currentChanged.connect(display_selected)
         self.pushButton_reset.clicked.connect(on_pushButton_reset)
         self.pushButton_modify.clicked.connect(on_pushButton_modify)
+        self.tableView.horizontalHeader().sectionClicked.connect(sort_table_by_column)
 
-        # TODO: 表格列排序（包括双爆分和期望双爆分）
-        # self.tableView.sortByColumn()
+        # 筛选的Dialog
+        self.filter_dialog = RelicFilterDialog()
+        self.pushButton_filter.clicked.connect(on_pushButton_filter)
 
     def _setup_data(self):
         output_file_name = 'relics.pkl.qjc'
@@ -188,6 +286,11 @@ class MyTableModel(QAbstractTableModel):
         self.beginResetModel()
         self.raw_data.sort(key=lambda x: x.get_crit_score_expectation(), reverse=True)
         self.data_view.sort(key=lambda x: x.get_crit_score_expectation(), reverse=True)
+        self.endResetModel()
+
+    def sort_data_view(self, key):
+        self.beginResetModel()
+        self.data_view.sort(key=key, reverse=True)
         self.endResetModel()
 
     def data(self, index, role=Qt.DisplayRole):
