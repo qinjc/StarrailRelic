@@ -1,11 +1,16 @@
 import importlib
+import sys
 from copy import deepcopy
 from functools import reduce
 from itertools import chain
 
-from Constants import *
-from RelicsGetter import get_relics
+from PyQt5.QtWidgets import QApplication
 
+from core.Constants import *
+from core.RelicsGetter import get_relics
+from qt.RelicMainWindow.RelicMainWindow import RelicMainWindow
+
+output_file_path = 'resource/'
 output_file_name = 'relics.pkl.qjc'
 
 
@@ -383,7 +388,7 @@ def calc_max_damage(player_relics, char_name):
 
 
 def statistic():
-    relics = get_relics(output_file_name)
+    relics = get_relics(output_file_path, output_file_name)
     relics = chain.from_iterable(relics)
     relics = sorted(relics, key=lambda x: x.get_crit_score(), reverse=True)
     for relic in relics:
@@ -393,7 +398,7 @@ def statistic():
 
 
 def strengthen_relics():
-    relics = get_relics(output_file_name)
+    relics = get_relics(output_file_path, output_file_name)
     relics = chain.from_iterable(relics)
 
     # 有强化价值的套装
@@ -439,12 +444,21 @@ def strengthen_relics():
         print(relic.format_str())
 
 
+def start_ui():
+    relics = get_relics(output_file_path, output_file_name)
+    app = QApplication(sys.argv)
+    main_window = RelicMainWindow(relics)
+    main_window.show()
+    sys.exit(app.exec_())
+
+
 def main():
-    relics = get_relics(output_file_name)
+    relics = get_relics(output_file_path, output_file_name)
     calc_max_damage(relics, '黄泉')
     # statistic()
     # strengthen_relics()
 
 
 if __name__ == '__main__':
-    main()
+    start_ui()
+    # main()

@@ -2,21 +2,22 @@ import sys
 from copy import deepcopy
 from itertools import chain
 
-from Relic import Relic
+from core.Relic import Relic
 from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QCheckBox
-from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal
+from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt
 
-from RelicsGetter import get_relics
-from Constants import *
+from core.Constants import *
 
-from RelicInspect import Ui_MainWindow  # 导入转换后的ui模块
-from RelicModifyConfirmDialog import RelicModifyConfirmDialog
-from RelicFilterDialog import RelicFilterDialog
+from qt.RelicMainWindow.RelicMainWindowUI import Ui_RelicMainWindow  # 导入转换后的ui模块
+from qt.RelicModifyConfirmDialog.RelicModifyConfirmDialog import RelicModifyConfirmDialog
+from qt.RelicFilterDialog.RelicFilterDialog import RelicFilterDialog
 
 
-class MainWindow(QMainWindow, Ui_MainWindow):
-    def __init__(self):
-        super(MainWindow, self).__init__()
+class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
+    def __init__(self, relics):
+        super(RelicMainWindow, self).__init__()
+        self.relics = relics
+
         self.setupUi(self)  # 使用Ui_MainWindow中的setupUi方法来设置界面
         self.setFixedSize(1600, 600)
         self._setup_variable()
@@ -25,7 +26,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _setup_variable(self):
         self.ignore_full_level = False
         self.selected_suit = SUIT
-        self.selected_position = set(POSITION_LIB)
+        self.selected_position = POSITION_INDEX.values()
         self.selected_main_entry = MAIN_ENTRY
         self.selected_sub_entry = SUB_ENTRY
 
@@ -222,8 +223,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_filter.clicked.connect(on_pushButton_filter)
 
     def _setup_data(self):
-        output_file_name = 'relics.pkl.qjc'
-        sample_data = get_relics(output_file_name)
+        sample_data = self.relics
         sample_data = list(chain.from_iterable(sample_data))
 
         # 副词条修改框 集成
@@ -344,6 +344,6 @@ class MyTableModel(QAbstractTableModel):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = MainWindow()
+    main_window = RelicMainWindow()
     main_window.show()
     sys.exit(app.exec_())

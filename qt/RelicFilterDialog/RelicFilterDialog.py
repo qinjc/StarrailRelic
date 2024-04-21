@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QDialog
-from RelicFilterDialogUI import Ui_Dialog
+from qt.RelicFilterDialog.RelicFilterDialogUI import Ui_Dialog
 
 
 class RelicFilterDialog(QDialog, Ui_Dialog):

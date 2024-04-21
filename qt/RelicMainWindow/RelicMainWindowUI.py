@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'RelicInspect.ui'
+# Form implementation generated from reading ui file 'RelicMainWindowUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -11,16 +11,16 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1600, 600)
+class Ui_RelicMainWindow(object):
+    def setupUi(self, RelicMainWindow):
+        RelicMainWindow.setObjectName("RelicMainWindow")
+        RelicMainWindow.resize(1600, 600)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
-        MainWindow.setSizePolicy(sizePolicy)
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        sizePolicy.setHeightForWidth(RelicMainWindow.sizePolicy().hasHeightForWidth())
+        RelicMainWindow.setSizePolicy(sizePolicy)
+        self.centralwidget = QtWidgets.QWidget(RelicMainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.tableView = QtWidgets.QTableView(self.centralwidget)
         self.tableView.setGeometry(QtCore.QRect(10, 10, 1250, 511))
@@ -232,26 +232,26 @@ class Ui_MainWindow(object):
         font.setPointSize(16)
         self.pushButton_filter.setFont(font)
         self.pushButton_filter.setObjectName("pushButton_filter")
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        RelicMainWindow.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(RelicMainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1600, 23))
         self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        RelicMainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(RelicMainWindow)
         self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
+        RelicMainWindow.setStatusBar(self.statusbar)
 
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.retranslateUi(RelicMainWindow)
+        QtCore.QMetaObject.connectSlotsByName(RelicMainWindow)
 
-    def retranslateUi(self, MainWindow):
+    def retranslateUi(self, RelicMainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "遗器小助手@qinjc"))
-        self.checkBox_ignore_full_level.setText(_translate("MainWindow", "忽略满级遗器"))
-        self.label_title.setText(_translate("MainWindow", "遗器修改面板"))
-        self.pushButton_modify.setText(_translate("MainWindow", "修改"))
-        self.pushButton_reset.setText(_translate("MainWindow", "重置"))
-        self.label_level.setText(_translate("MainWindow", "等级"))
-        self.label_main_entry.setText(_translate("MainWindow", "主词条"))
-        self.label_sub_entry.setText(_translate("MainWindow", "副词条"))
-        self.pushButton_filter.setText(_translate("MainWindow", "筛选"))
+        RelicMainWindow.setWindowTitle(_translate("RelicMainWindow", "遗器小助手@qinjc"))
+        self.checkBox_ignore_full_level.setText(_translate("RelicMainWindow", "忽略满级遗器"))
+        self.label_title.setText(_translate("RelicMainWindow", "遗器修改面板"))
+        self.pushButton_modify.setText(_translate("RelicMainWindow", "修改"))
+        self.pushButton_reset.setText(_translate("RelicMainWindow", "重置"))
+        self.label_level.setText(_translate("RelicMainWindow", "等级"))
+        self.label_main_entry.setText(_translate("RelicMainWindow", "主词条"))
+        self.label_sub_entry.setText(_translate("RelicMainWindow", "副词条"))
+        self.pushButton_filter.setText(_translate("RelicMainWindow", "筛选"))

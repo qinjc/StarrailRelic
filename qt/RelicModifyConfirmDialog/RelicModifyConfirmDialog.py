@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QDialog
-from RelicModifyConfirmDialogUI import Ui_Dialog
+from qt.RelicModifyConfirmDialog.RelicModifyConfirmDialogUI import Ui_Dialog
 
 
 class RelicModifyConfirmDialog(QDialog, Ui_Dialog):

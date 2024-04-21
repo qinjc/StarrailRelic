@@ -1,6 +1,7 @@
 import logging
 import os
 import pickle
+import sys
 import time
 from threading import Thread
 
@@ -8,18 +9,21 @@ import keyboard
 from PIL import ImageGrab, ImageChops
 import numpy as np
 
-from Constants import *
-from Relic import Relic
+from core.Constants import *
+import core.Relic
+from core.Relic import Relic
 
 
 # 从屏幕或者文件中获取玩家的库存遗器
-def get_relics(output_file_name):
-    if output_file_name in os.listdir():
-        with open(output_file_name, 'rb') as fp:
+def get_relics(output_file_path, output_file_name):
+    sys.path.append('core')
+    output_file = os.path.join(output_file_path, output_file_name)
+    if output_file_name in os.listdir(output_file_path):
+        with open(output_file, 'rb') as fp:
             relics = pickle.load(fp)
     else:
         relics = scan_relics()
-        with open(output_file_name, 'wb') as fp:
+        with open(output_file, 'wb') as fp:
             pickle.dump(relics, fp)
     return relics
 

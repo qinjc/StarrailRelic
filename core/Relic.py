@@ -1,7 +1,7 @@
 import math
 from copy import deepcopy
 
-from Constants import *
+from core.Constants import *
 
 
 class Relic:

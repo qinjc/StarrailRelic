@@ -1,6 +1,5 @@
 import keyboard
 import pyautogui
-from threading import Thread
 from time import sleep
 from itertools import chain
 
@@ -65,12 +64,6 @@ def main():
             pyautogui.click(374, 1191)
             # sleep若干秒
             sleep(50)
-
-
-import sys
-import RelicInspect
-from RelicsGetter import get_relics
-from PyQt5.QtWidgets import QApplication, QMainWindow
 
 
 def test():
