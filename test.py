@@ -1,82 +1,77 @@
-import keyboard
-import pyautogui
-from time import sleep
-from itertools import chain
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QLineEdit, QPushButton, QVBoxLayout, QWidget,
+                             QDialog, QDialogButtonBox, QLabel)
 
 
-# while True:
-#     x, y = pyautogui.position()
-#     print(x, y)
-#     time = __import__('time')
-#     time.sleep(0.1)
-# flag = True
+class CustomDialog(QDialog):
+    def __init__(self, old_value, new_value, parent=None):
+        super().__init__(parent)
+        self.old_value = old_value
+        self.new_value = new_value
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("确认修改")
+
+        # 创建布局
+        layout = QVBoxLayout()
+
+        # 显示提示信息
+        message = f"是否确定要将 value 从 '{self.old_value}' 改为 '{self.new_value}'？"
+        layout.addWidget(QLabel(message))
+
+        # 创建按钮框并添加确认和取消按钮
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Yes | QDialogButtonBox.No)
+        layout.addWidget(buttonBox)
+
+        # 设置布局
+        self.setLayout(layout)
+
+        # 连接按钮信号
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
 
 
-# def func(sec):
-#     global flag
-#     sleep(sec)
-#     keyboard.wait('`')
-#     flag = False
-#
-#
-# # 创建 Thread 实例
-# t1 = Thread(target=func, args=(1, ))
-#
-# # 启动线程运行
-# t1.start()
-#
-# while flag:
-#     print('check...')
-#     sleep(0.5)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.value = "初始值"  # 初始的value变量
+        self._initUI()
+
+    def _initUI(self):
+        # 创建布局和控件
+        self.layout = QVBoxLayout()
+        self.lineEdit = QLineEdit(self.value, self)
+        self.pushButton = QPushButton("修改值", self)
+
+        # 将控件添加到布局中
+        self.layout.addWidget(self.lineEdit)
+        self.layout.addWidget(self.pushButton)
+
+        # 设置窗口的布局
+        centralWidget = QWidget()
+        centralWidget.setLayout(self.layout)
+        self.setCentralWidget(centralWidget)
+
+        # 连接按钮信号
+        self.pushButton.clicked.connect(self.showCustomDialog)
+
+    def showCustomDialog(self):
+        new_value = self.lineEdit.text()  # 获取lineEdit中的文本
+        dialog = CustomDialog(self.value, new_value, self)
+
+        # 显示对话框并获取用户响应
+        if dialog.exec_():
+            old_value = self.value
+            # 用户点击了确认，修改value变量
+            self.value = new_value
+            print(f"Value has been changed from {old_value} to: {self.value}")
+        else:
+            # 用户点击了取消，不执行修改
+            print("Modification cancelled by the user.")
 
 
-def main():
-    print('waiting for typing \'`\'')
-    # 检测键盘"`"键启动
-    keyboard.wait('`')
-    print('running')
-
-    n = 3
-    # 循环n次，消耗2n个燃料，刷取3n次副本
-    for i in range(n):
-        # 右上角查看开拓力(2268, 89)
-        pyautogui.click(2268, 89)
-        sleep(0.5)
-        # 点击确认以选择补充方式为燃料(1547, 978)
-        pyautogui.click(1547, 978)
-        sleep(0.5)
-        # 点击‘+’至2个燃料(1834, 844)
-        pyautogui.click(1834, 844)
-        sleep(0.5)
-        # 点击确定以添加燃料(1567, 991)
-        pyautogui.click(1567, 991)
-        sleep(2)
-        # 点击空白处关闭对话框(2000, 1000)
-        pyautogui.click(2000, 1000)
-        sleep(0.5)
-        # 进行三次循环
-        for _ in range(3):
-            # 点击再来一次开始(1606, 1266)
-            pyautogui.click(1606, 1266)
-            # sleep若干秒
-            sleep(3)
-            # 尝试开启符玄大招回血(374, 1191)
-            pyautogui.click(374, 1191)
-            # sleep若干秒
-            sleep(50)
-
-
-def test():
-    raw_data = [[1, 2, 3], [4, 5, 6]]
-    sample_data = list(chain.from_iterable(raw_data))
-    sample_data = []
-    for i in range(len(raw_data)):
-        sample_data += raw_data[i]
-    sample_data[1] = 999
-    print(sample_data)
-    print(raw_data)
-
-
-if __name__ == '__main__':
-    test()
-
+if __name__ == "__main__":
+    app = QApplication([])
+    mainWindow = MainWindow()
+    mainWindow.show()
+    app.exec_()

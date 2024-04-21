@@ -10,20 +10,28 @@ from PIL import ImageGrab, ImageChops
 import numpy as np
 
 from core.Constants import *
-import core.Relic
 from core.Relic import Relic
 
 
 # 从屏幕或者文件中获取玩家的库存遗器
-def get_relics(output_file_path, output_file_name):
-    sys.path.append('core')
-    output_file = os.path.join(output_file_path, output_file_name)
-    if output_file_name in os.listdir(output_file_path):
-        with open(output_file, 'rb') as fp:
+def get_relics(output_file_name, scan=True):
+    sys.path.append(os.path.join(sys.path[1], 'core/'))
+
+    relics_file_path = None
+    for path in sys.path:
+        if path.endswith('StarrailRelic'):
+            relics_file_path = os.path.join(path, 'resource/')
+            break
+    relics_file_path_name = os.path.join(relics_file_path, output_file_name)
+
+    if output_file_name in os.listdir(relics_file_path):
+        with open(relics_file_path_name, 'rb') as fp:
             relics = pickle.load(fp)
     else:
+        if not scan:
+            return []
         relics = scan_relics()
-        with open(output_file, 'wb') as fp:
+        with open(relics_file_path_name, 'wb') as fp:
             pickle.dump(relics, fp)
     return relics
 
@@ -72,7 +80,7 @@ def correct_suit_name(relic):
 
 # 通过扫描屏幕获取玩家的库存遗器
 def scan_relics():
-    print('waiting...')
+    print('Press ` to continue...')
     # 检测键盘"`"键启动
     keyboard.wait('`')
     scroll_control_lib = [5] * 24 + [4]
@@ -93,14 +101,15 @@ def scan_relics():
     detect_end = False
     offset_y = 200
     offset_y_cnt = 0
-    # start_position = (249, 358)
+    # 手动控制最大扫描行数（N-1表示不设上限）
+    MAX_ROW = -1
 
     start_time = time.time()
     print('detection start')
     # 查询10行
     # for row in range(119):
     row = 0
-    while not detect_end:
+    while (not detect_end) and ((MAX_ROW == -1) or row < MAX_ROW):
         # 每行9个
         if page_end:
             offset_y_cnt += 1

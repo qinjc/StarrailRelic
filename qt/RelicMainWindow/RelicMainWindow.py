@@ -1,12 +1,14 @@
 import sys
+import threading
 from copy import deepcopy
 from itertools import chain
 
 from core.Relic import Relic
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QCheckBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHeaderView, QCheckBox, QMessageBox
 from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from core.Constants import *
+from core.RelicsGetter import get_relics
 
 from qt.RelicMainWindow.RelicMainWindowUI import Ui_RelicMainWindow  # 导入转换后的ui模块
 from qt.RelicModifyConfirmDialog.RelicModifyConfirmDialog import RelicModifyConfirmDialog
@@ -14,9 +16,10 @@ from qt.RelicFilterDialog.RelicFilterDialog import RelicFilterDialog
 
 
 class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
-    def __init__(self, relics):
+    def __init__(self, relics_file_name):
         super(RelicMainWindow, self).__init__()
-        self.relics = relics
+        self.relics_file_name = relics_file_name
+        self.relics_arrange_by_position = []
 
         self.setupUi(self)  # 使用Ui_MainWindow中的setupUi方法来设置界面
         self.setFixedSize(1600, 600)
@@ -26,9 +29,10 @@ class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
     def _setup_variable(self):
         self.ignore_full_level = False
         self.selected_suit = SUIT
-        self.selected_position = POSITION_INDEX.values()
+        self.selected_position = set(POSITION_INDEX.values())
         self.selected_main_entry = MAIN_ENTRY
         self.selected_sub_entry = SUB_ENTRY
+        self.get_relics_thread_working = False
 
     def _setup_widget(self):
         def relic_filter_func(t_relic: Relic):
@@ -46,9 +50,12 @@ class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
 
         def on_click_ignore_button():
             self.ignore_full_level = self.checkBox_ignore_full_level.isChecked()
-            self.model.update_data(relic_filter_func)
+            self.model.filter_data(relic_filter_func)
 
         def display_selected(current: QModelIndex):
+            self.pushButton_modify.setEnabled(True)
+            self.pushButton_reset.setEnabled(True)
+
             current_row = current.row()
             select_relic: Relic = self.model.data_view[current_row]
             self.lineEdit_suit.setText(select_relic.suit)
@@ -207,7 +214,28 @@ class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
                     else:
                         self.selected_sub_entry.discard(sub_entry_name)
 
-                self.model.update_data(relic_filter_func)
+                self.model.filter_data(relic_filter_func)
+
+        def on_pushButton_get_relics():
+            def scan_relics_on_thread():
+                self.relics_arrange_by_position = get_relics(self.relics_file_name)
+                self.model.update_data(list(chain.from_iterable(self.relics_arrange_by_position)))
+                self.get_relics_thread_working = False
+
+            if self.get_relics_thread_working:
+                QMessageBox.warning(self, "别急", "扫描仍在进行中")
+                return
+            self.relics_arrange_by_position = get_relics(self.relics_file_name, scan=False)
+            self.model.update_data(list(chain.from_iterable(self.relics_arrange_by_position)))
+            if not self.relics_arrange_by_position:
+                scan_confirm = QMessageBox.question(self,
+                                                    f"未找到{self.relics_file_name}",
+                                                    "是否确定要从屏幕上获取遗器（该过程需要OCR，可能会花费一些时间）？",
+                                                    QMessageBox.Yes | QMessageBox.No)
+                if scan_confirm == QMessageBox.Yes:
+                    self.get_relics_thread = threading.Thread(target=scan_relics_on_thread)
+                    self.get_relics_thread.start()
+                    self.get_relics_thread_working = True
 
         self.checkBox_ignore_full_level.toggled.connect(on_click_ignore_button)
         self._setup_data()
@@ -222,9 +250,11 @@ class RelicMainWindow(QMainWindow, Ui_RelicMainWindow):
         self.filter_dialog = RelicFilterDialog()
         self.pushButton_filter.clicked.connect(on_pushButton_filter)
 
+        # 获取遗器
+        self.pushButton_get_relics.clicked.connect(on_pushButton_get_relics)
+
     def _setup_data(self):
-        sample_data = self.relics
-        sample_data = list(chain.from_iterable(sample_data))
+        sample_data = list(chain.from_iterable(self.relics_arrange_by_position))
 
         # 副词条修改框 集成
         self.lineEdit_sub_entry_names = [self.__getattribute__('lineEdit_sub_entry_{}_name'.format(i)) for i in
@@ -265,10 +295,17 @@ class MyTableModel(QAbstractTableModel):
                        ['副词条1属性', '副词条1数值', '副词条2属性', '副词条2数值'] + \
                        ['副词条3属性', '副词条3数值', '副词条4属性', '副词条4数值']
 
-    def update_data(self, filter_):
+    def update_data(self, new_data):
+        self.raw_data = new_data
         self.beginResetModel()
-        self.data_view = list(filter(filter_, self.raw_data))
-        self.data_view.sort(key=lambda x: x.get_crit_score_expectation(), reverse=True)
+        self.data_view = deepcopy(self.raw_data)
+        self.endResetModel()
+
+    def filter_data(self, filter_):
+        self.beginResetModel()
+        if self.raw_data:
+            self.data_view = list(filter(filter_, self.raw_data))
+            self.data_view.sort(key=lambda x: x.get_crit_score_expectation(), reverse=True)
         self.endResetModel()
 
     def update_relic(self, old_relic: Relic, new_relic: Relic):
@@ -344,6 +381,6 @@ class MyTableModel(QAbstractTableModel):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = RelicMainWindow()
+    main_window = RelicMainWindow('relics.pkl.qjc')
     main_window.show()
     sys.exit(app.exec_())

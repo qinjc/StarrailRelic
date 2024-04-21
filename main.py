@@ -10,7 +10,6 @@ from core.Constants import *
 from core.RelicsGetter import get_relics
 from qt.RelicMainWindow.RelicMainWindow import RelicMainWindow
 
-output_file_path = 'resource/'
 output_file_name = 'relics.pkl.qjc'
 
 
@@ -378,7 +377,7 @@ def calc_max_damage(player_relics, char_name):
     char_file = importlib.import_module('character_info.{}'.format(char_name))
     char_info = char_file.__getattribute__('data')
     extra_buffs = char_file.__getattribute__('buffs')
-    relics_info = char_file.__getattribute__('relics')
+    relics_info = char_file.__getattribute__('relics_arrange_by_position')
 
     # 遍历所有套装得到的最高伤害
     max_arrange_dict = research_suit(player_relics, char_info, extra_buffs, relics_info)
@@ -388,7 +387,7 @@ def calc_max_damage(player_relics, char_name):
 
 
 def statistic():
-    relics = get_relics(output_file_path, output_file_name)
+    relics = get_relics(output_file_name)
     relics = chain.from_iterable(relics)
     relics = sorted(relics, key=lambda x: x.get_crit_score(), reverse=True)
     for relic in relics:
@@ -398,7 +397,7 @@ def statistic():
 
 
 def strengthen_relics():
-    relics = get_relics(output_file_path, output_file_name)
+    relics = get_relics(output_file_name)
     relics = chain.from_iterable(relics)
 
     # 有强化价值的套装
@@ -445,15 +444,14 @@ def strengthen_relics():
 
 
 def start_ui():
-    relics = get_relics(output_file_path, output_file_name)
     app = QApplication(sys.argv)
-    main_window = RelicMainWindow(relics)
+    main_window = RelicMainWindow(output_file_name)
     main_window.show()
     sys.exit(app.exec_())
 
 
 def main():
-    relics = get_relics(output_file_path, output_file_name)
+    relics = get_relics(output_file_name)
     calc_max_damage(relics, '黄泉')
     # statistic()
     # strengthen_relics()
